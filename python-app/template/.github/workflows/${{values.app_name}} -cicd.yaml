@@ -10,26 +10,37 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    steps:
+    
+    # 1. Define job-level outputs here (Parallel to 'steps', NOT inside it)
+    outputs:
+      commit_id: ${{ '${{ steps.expose_id.outputs.COMMIT_ID }}' }}
 
+    steps:
       - name: Shorten commit id
+        # 2. You MUST give the step an ID to reference its outputs later
+        id: expose_id 
         shell: bash
         run: |
-          echo "COMMIT_ID=${GITHUB_SHA::6}" >> "$GITHUB_ENV"
-      -
-        name: Login to Docker Hub
+          # Extract the short SHA
+          SHORT_SHA=$(echo "${{ '${{ github.sha }}' }}" | cut -c1-6)
+          
+          # 3. Write to $GITHUB_OUTPUT so the step exposes it
+          echo "COMMIT_ID=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          
+          # (Optional) Keep this if you still need it in this job's later steps
+          echo "COMMIT_ID=$SHORT_SHA" >> "$GITHUB_ENV"
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ '${{ secrets.DOCKERHUB_USERNAME }}' }}
           password: ${{ '${{ secrets.DOCKERHUB_TOKEN }}' }}
-      -
-        name: Build and push
+
+      - name: Build and push
         uses: docker/build-push-action@v6
         with:
           push: true
-          tags: 1rajboricha/${{values.app_name}}:${{ '${{ env.COMMIT_ID }}' }}
-    outputs:
-      commit_id: ${{ env.COMMIT_ID }}
+          tags: 1rajboricha/${{ values.app_name }}:${{ '${{ env.COMMIT_ID }}' }}
   
   cd:
     needs: ci
@@ -41,11 +52,11 @@ jobs:
       - name: Modify values file
         shell: bash
         run: |
-          echo ${{needs.ci.outputs.commit_id}}
+          echo "${{ '${{ needs.ci.outputs.commit_id }}' }}"
           curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o yq
           chmod +x yq
           sudo mv yq /usr/local/bin/yq
-          yq e -i '.image.tag = "${{'${{needs.ci.outputs.commit_id}}' }}"' charts/${{values.app_name}}/values-${{values.app_env}}.yaml
+          yq e -i '.image.tag = "'"${{ '${{ needs.ci.outputs.commit_id }}' }}"'"' charts/${{ values.app_name }}/values-${{ values.app_env }}.yaml
 
       - name: Commit changes
         uses: EndBug/add-and-commit@v9
