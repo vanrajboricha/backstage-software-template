@@ -1,5 +1,10 @@
 replicaCount: 2
 
+image:
+  repository: 1rajboricha/${{values.app_name}}
+  pullPolicy: IfNotPresent
+  tag: 
+
 resources:
   requests:
     cpu: 60m

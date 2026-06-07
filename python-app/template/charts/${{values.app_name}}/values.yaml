@@ -2,7 +2,7 @@ replicaCount: 1
 image:
   repository: 1rajboricha/${{values.app_name}}
   pullPolicy: IfNotPresent
-  tag: ${{values.app_name}}-${{values.app_env}}-latest
+  tag: 
 
 imagePullSecrets: []
 nameOverride: ""
