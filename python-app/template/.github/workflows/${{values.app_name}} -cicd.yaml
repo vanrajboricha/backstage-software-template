@@ -59,36 +59,70 @@ jobs:
           chmod +x argocd
           sudo mv ./argocd /usr/local/bin/argocd
 
-      - name: Argocd app sync
-        shell: bash
+      - name: ArgoCD Login
         run: |
           argocd login argocd-server.argocd \
-            --insecure  \
+            --insecure \
             --grpc-web \
             --username admin \
-            --password  ${{ '${{ secrets.ARGOCD_PASSWORD }}' }}
+            --password ${{ secrets.ARGOCD_PASSWORD }}
+
+          argocd account get-user-info
+
+      - name: Ensure ArgoCD repo and app
+        run: |
+          repo="https://github.com/vanraj-boricha/${{ values.app_name }}.git"
+
+          argocd repo list | grep -q "$repo" || \
+            argocd repo add "$repo"
+
+          if ! argocd app get ${{ values.app_name }} >/dev/null 2>&1; then
+            argocd app create ${{ values.app_name }} \
+              --repo "$repo" \
+              --path charts/${{ values.app_name }} \
+              --dest-namespace ${{ values.app_env }} \
+              --dest-server https://kubernetes.default.svc \
+              --values values-${{ values.app_env }}.yaml \
+              --revision main \
+              --sync-policy manual \
+              --sync-option CreateNamespace=true
+          fi
+
+      - name: Sync ArgoCD app
+        run: |
+          argocd app sync ${{ values.app_name }}
+          argocd app wait ${{ values.app_name }} --timeout 180
+
+      # - name: Argocd app login
+      #   shell: bash
+      #   run: |
+      #     argocd login argocd-server.argocd \
+      #       --insecure  \
+      #       --grpc-web \
+      #       --username admin \
+      #       --password  ${{ '${{ secrets.ARGOCD_PASSWORD }}' }}
   
-      - name: Ensure argocd repo and app
-        shell: bash
-        run: |
+      # - name: Ensure argocd repo and app
+      #   shell: bash
+      #   run: |
 
-          # Connects the argocd repo
-          repo="https://github.com/vanraj-boricha/${{values.app_name}}.git"
-          argocd repo list | grep -q $repo || argocd repo add $repo
+      #     # Connects the argocd repo
+      #     repo="https://github.com/vanraj-boricha/${{values.app_name}}.git"
+      #     argocd repo list | grep -q $repo || argocd repo add $repo
 
-          # Creates the argocd app
-          argocd app get ${{values.app_name}} || argocd app create ${{values.app_name}} \
-            --repo $repo \
-            --path charts/${{values.app_name}} \
-            --dest-namespace ${{values.app_env}} \
-            --dest-server https://kubernetes.default.svc \
-            --values values-${{values.app_env}}.yaml \
-            --revision master \
-            --sync-policy manual \
-            --sync-option CreateNamespace=true
+      #     # Creates the argocd app
+      #     argocd app get ${{values.app_name}} || argocd app create ${{values.app_name}} \
+      #       --repo $repo \
+      #       --path charts/${{values.app_name}} \
+      #       --dest-namespace ${{values.app_env}} \
+      #       --dest-server https://kubernetes.default.svc \
+      #       --values values-${{values.app_env}}.yaml \
+      #       --revision master \
+      #       --sync-policy manual \
+      #       --sync-option CreateNamespace=true
 
-      - name: Argocd app sync
-        shell: bash
-        run: |
-          argocd app sync ${{values.app_name}}
-          argocd app wait ${{values.app_name}} --timeout 180
+      # - name: Argocd app sync
+      #   shell: bash
+      #   run: |
+      #     argocd app sync ${{values.app_name}}
+      #     argocd app wait ${{values.app_name}} --timeout 180
