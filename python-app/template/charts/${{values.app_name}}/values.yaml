@@ -29,8 +29,7 @@ service:
 
 ingress:
   enabled: true
-  ingressClassName: alb # Tells EKS to trigger the AWS Load Balancer Controller
-  
+  ingressClassName: alb # Tells EKS to trigger the AWS Load Balancer Controller  
   annotations:
     alb.ingress.kubernetes.io/scheme: internet-facing    
     alb.ingress.kubernetes.io/target-type: ip
@@ -51,7 +50,6 @@ ingress:
               name: ${{ values.app_name }}
               port:
                 number: 5000
-  tls: []
 resources:
   requests:
     cpu: ${{ values.app_requests_cpu }}
