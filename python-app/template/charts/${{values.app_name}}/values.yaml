@@ -29,9 +29,9 @@ service:
 
 ingress:
   enabled: true
-  ingressClassName: alb # Tells EKS to trigger the AWS Load Balancer Controller  
+  ingressClassName: alb   # ← nested under ingress:
   annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing    
+    alb.ingress.kubernetes.io/scheme: internet-facing
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /health
@@ -39,17 +39,17 @@ ingress:
     alb.ingress.kubernetes.io/success-codes: '200'
     alb.ingress.kubernetes.io/healthcheck-interval-seconds: '15'
     alb.ingress.kubernetes.io/healthcheck-timeout-seconds: '5'
-
   hosts:
-    - host: "" # Put your target routing domain here
+    - host: ""
       paths:
         - path: /
           pathType: Prefix
           backend:
             service:
-              name: ${{ values.app_name }}
+              name: my-app-name
               port:
                 number: 5000
+  tls: [] 
 resources:
   requests:
     cpu: ${{ values.app_requests_cpu }}
