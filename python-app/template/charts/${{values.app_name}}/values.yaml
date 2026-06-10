@@ -1,4 +1,4 @@
-replicaCount: ${{ values.replica_count }}
+replicaCount: ${{ values.app_replica }}
 image:
   repository: 454143665149.dkr.ecr.ap-south-1.amazonaws.com/${{ values.app_name }}
   pullPolicy: IfNotPresent
@@ -32,22 +32,9 @@ ingress:
   ingressClassName: alb # Tells EKS to trigger the AWS Load Balancer Controller
   
   annotations:
-    # Makes the ALB accessible from the public internet
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    
-    # Target-type 'ip' routes traffic directly to your pods (Recommended for EKS)
+    alb.ingress.kubernetes.io/scheme: internet-facing    
     alb.ingress.kubernetes.io/target-type: ip
-    
-    # Opens up ports 80 (HTTP) and 443 (HTTPS) on the AWS Load Balancer
-    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS":443}]'
-    
-    # Automatically redirects all insecure port 80 traffic to port 443 (HTTPS)
-    alb.ingress.kubernetes.io/ssl-redirect: '443'
-    
-    # CRITICAL: Replace this with your actual AWS Certificate Manager ARN for SSL
-    alb.ingress.kubernetes.io/certificate-arn: arn:aws:acm:ap-south-1:454143665149:certificate/8288fd89-6f35-4e59-b13c-ebf9a602db51
-    
-    # --- Health Checks (Tailor to your Python app) ---
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
     alb.ingress.kubernetes.io/healthcheck-path: /health
     alb.ingress.kubernetes.io/healthcheck-port: traffic-port
     alb.ingress.kubernetes.io/success-codes: '200'
@@ -59,11 +46,16 @@ ingress:
       paths:
         - path: /
           pathType: Prefix
+          backend:
+            service:
+              name: ${{ values.app_name }}
+              port:
+                number: 5000
   tls: []
 resources:
   requests:
-    cpu: ${{ values.cpu_request }}
-    memory: ${{ values.memory_request }}
+    cpu: ${{ values.app_requests_cpu }}
+    memory: ${{ values.app_requests_memory }}
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:

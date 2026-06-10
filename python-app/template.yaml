@@ -57,6 +57,10 @@ spec:
         values:
           app_name: ${{parameters.component_id}}
           app_env: ${{parameters.environment}}
+          app_replica: ${{parameters.replica_count}}
+          app_requests_cpu: ${{parameters.cpu_request}}
+          app_requests_memory: ${{parameters.memory_request}}
+
 
     - id: publish
       name: Publish

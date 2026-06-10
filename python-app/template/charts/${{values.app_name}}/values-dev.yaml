@@ -1,9 +1,9 @@
-replicaCount: ${{ values.replica_count }}
+replicaCount: ${{ values.app_replica }}
 image:
   repository: 454143665149.dkr.ecr.ap-south-1.amazonaws.com/${{ values.app_name }}
   pullPolicy: IfNotPresent
   tag: 
 resources:
   requests:
-    cpu: ${{ values.cpu_request }}
-    memory: ${{ values.memory_request }}
+    cpu: ${{ values.app_requests_cpu }}
+    memory: ${{ values.app_requests_memory }}
