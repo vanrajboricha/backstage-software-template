@@ -85,7 +85,7 @@ jobs:
           shell: bash
           run: |
             # Works out-of-the-box via internal cluster routing!
-            ./argocd login argocd-argo-cd-server.argocd.svc.cluster.local:443 \
+            ./argocd login argocd-server.argocd.svc.cluster.local:443 \
               --insecure \
               --grpc-web \
               --username admin \
