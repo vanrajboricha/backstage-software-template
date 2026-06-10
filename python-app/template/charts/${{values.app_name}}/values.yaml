@@ -1,6 +1,6 @@
-replicaCount: 1
+replicaCount: ${{ values.replica_count }}
 image:
-  repository: 1rajboricha/${{values.app_name}}
+  repository: 454143665149.dkr.ecr.ap-south-1.amazonaws.com/${{ values.app_name }}
   pullPolicy: IfNotPresent
   tag: 
 
@@ -39,8 +39,8 @@ ingress:
   tls: []
 resources:
   requests:
-    cpu: 50m
-    memory: 50M
+    cpu: ${{ values.cpu_request }}
+    memory: ${{ values.memory_request }}
 
 # This is to setup the liveness and readiness probes more information can be found here: https://kubernetes.io/docs/tasks/configure-pod-container/configure-liveness-readiness-startup-probes/
 livenessProbe:

@@ -1,11 +1,11 @@
-replicaCount: 2
+replicaCount: ${{ values.replica_count }}
 
 image:
-  repository: 1rajboricha/${{values.app_name}}
+  repository: 454143665149.dkr.ecr.ap-south-1.amazonaws.com/${{ values.app_name }}
   pullPolicy: IfNotPresent
   tag: 
 
 resources:
   requests:
-    cpu: 60m
-    memory: 60M
+    cpu: ${{ values.cpu_request }}
+    memory: ${{ values.memory_request }}

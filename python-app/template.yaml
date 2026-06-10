@@ -13,12 +13,15 @@ spec:
       required:
         - component_id
         - environment
+        - replica_count
+
       properties:
         component_id:
           title: Component name
           type: string
           description: Provide a component (microservice) name
           pattern: '^([a-zA-Z][a-zA-Z0-9]*)(-[a-zA-Z0-9]+)*$'
+
         environment:
           title: Environment
           type: string
@@ -26,6 +29,24 @@ spec:
           enum:
             - dev
             - prod
+
+        replica_count:
+          title: Replica Count
+          type: integer
+          description: Number of pod replicas
+          default: 1
+
+        cpu_request:
+          title: CPU Request
+          type: string
+          description: CPU request for the container
+          default: 40m
+
+        memory_request:
+          title: Memory Request
+          type: string
+          description: Memory request for the container
+          default: 40Mi
 
   steps:
     - id: fetch-base
