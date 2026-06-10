@@ -71,6 +71,8 @@ jobs:
           with:
             message: 'chore(cd): updates values-${{ values.app_env }}.yaml with commit tag ${{ '${{ needs.ci.outputs.commit_id }}' }}'
             default_author: github_actions
+            pull: '--rebase --autostash' # Syncs remote changes cleanly right before pushing
+            push: true
 
 
         - name: Install ArgoCD CLI Engine
