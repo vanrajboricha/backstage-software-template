@@ -46,7 +46,7 @@ ingress:
           pathType: Prefix
           backend:
             service:
-              name: my-app-name
+              name: ${{values.app_name}}
               port:
                 number: 5000
   tls: [] 
