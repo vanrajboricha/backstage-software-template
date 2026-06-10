@@ -48,85 +48,69 @@ jobs:
         with:
           context: .
           push: true
-          # Dynamically targets your private AWS ECR repository path
           tags: 454143665149.dkr.ecr.ap-south-1.amazonaws.com/${{ values.app_name }}:${{ '${{ env.COMMIT_ID }}' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
-  
+
   cd:
-    needs: ci
-    # Routes this execution stage directly onto your EKS Organization Runner Pool
-    runs-on: [self-hosted, eks-self-hosted]
-    steps:
-      - name: Checkout Manifests Repo
-        uses: actions/checkout@v4
+      needs: ci
+      runs-on: [self-hosted, eks-self-hosted]
+      steps:
+        - name: Checkout Manifests Repo
+          uses: actions/checkout@v4
+
+        - name: Modify values file via yq
+          shell: bash
+          run: |
+            curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o ./yq          
+            chmod +x ./yq          
+            ./yq e -i '.image.tag = "'"${{ '${{ needs.ci.outputs.commit_id }}' }}"'"' charts/${{ values.app_name }}/values-${{ values.app_env }}.yaml
+
+        - name: Commit manifest changes
+          uses: EndBug/add-and-commit@v9
+          with:
+            message: 'chore(cd): updates values-${{ values.app_env }}.yaml with commit tag ${{ '${{ needs.ci.outputs.commit_id }}' }}'
+            default_author: github_actions
 
 
-      - name: Modify values file via yq
-        shell: bash
-        run: |
-          curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o ./yq          
-          chmod +x ./yq          
-          ./yq e -i '.image.tag = "'"${{ '${{ needs.ci.outputs.commit_id }}' }}"'"' charts/${{ values.app_name }}/values-${{ values.app_env }}.yaml
+        - name: Install ArgoCD CLI Engine
+          shell: bash
+          run: |
+            curl -sSL -o ./argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+            chmod +x ./argocd
 
-      - name: Commit manifest changes
-        uses: EndBug/add-and-commit@v9
-        with:
-          message: 'chore(cd): updates values-${{ values.app_env }}.yaml with commit tag ${{ '${{ needs.ci.outputs.commit_id }}' }}'
-          default_author: github_actions
+        - name: Connect and Login to ArgoCD Server
+          shell: bash
+          run: |
+            # Works out-of-the-box via internal cluster routing!
+            ./argocd login argocd-argo-cd-server.argocd.svc.cluster.local:443 \
+              --insecure \
+              --grpc-web \
+              --username admin \
+              --password ${{ '${{ secrets.ARGOCD_PASSWORD }}' }}
 
-      - name: Configure AWS Context for EKS
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          aws-access-key-id: ${{ '${{ secrets.AWS_ACCESS_KEY_ID }}' }}
-          aws-secret-access-key: ${{ '${{ secrets.AWS_SECRET_ACCESS_KEY }}' }}
-          aws-region: ap-south-1
+        - name: Ensure ArgoCD Repository Reference and Application State
+          shell: bash
+          run: |
+            repo="https://github.com/vanraj-boricha/${{ values.app_name }}.git"
 
-      - name: Update Kubeconfig Context
-        shell: bash
-        run: |
-          aws eks --region ap-south-1 update-kubeconfig --name PES-IA-dev-eks-vanbor
+            ./argocd repo list | grep -q "$repo" || \
+              ./argocd repo add "$repo"
 
-      - name: Install ArgoCD CLI Engine
-        shell: bash
-        run: |
-          curl -ksSL -o argocd https://raw.githubusercontent.com/argoproj/argo-cd/stable/src/apps/argocd/inline.sh || true
-          # Alternative clean download route if cluster DNS is internal-only
-          curl -sSL -o /usr/local/bin/argocd https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
-          chmod +x /usr/local/bin/argocd
+            if ! ./argocd app get ${{ values.app_name }} >/dev/null 2>&1; then
+              ./argocd app create ${{ values.app_name }} \
+                --repo "$repo" \
+                --path charts/${{ values.app_name }} \
+                --dest-namespace ${{ values.app_env }} \
+                --dest-server https://kubernetes.default.svc \
+                --values values-${{ values.app_env }}.yaml \
+                --revision main \
+                --sync-policy manual \
+                --sync-option CreateNamespace=true
+            fi
 
-      - name: Connect and Login to ArgoCD Server
-        shell: bash
-        run: |
-          # Grabs local cluster address safely since the runner lives inside EKS
-          argocd login argocd-server.argocd.svc.cluster.local:443 \
-            --insecure \
-            --grpc-web \
-            --username admin \
-            --password ${{ '${{ secrets.ARGOCD_PASSWORD }}' }}
-
-      - name: Ensure ArgoCD Repository Reference and Application State
-        shell: bash
-        run: |
-          repo="https://github.com/vanraj-boricha/${{ values.app_name }}.git"
-
-          argocd repo list | grep -q "$repo" || \
-            argocd repo add "$repo"
-
-          if ! argocd app get ${{ values.app_name }} >/dev/null 2>&1; then
-            argocd app create ${{ values.app_name }} \
-              --repo "$repo" \
-              --path charts/${{ values.app_name }} \
-              --dest-namespace ${{ values.app_env }} \
-              --dest-server https://kubernetes.default.svc \
-              --values values-${{ values.app_env }}.yaml \
-              --revision main \
-              --sync-policy manual \
-              --sync-option CreateNamespace=true
-          fi
-
-      - name: Execute Sync and Application Wait Verification
-        shell: bash
-        run: |
-          argocd app sync ${{ values.app_name }}
-          argocd app wait ${{ values.app_name }} --timeout 180
+        - name: Execute Sync and Application Wait Verification
+          shell: bash
+          run: |
+            ./argocd app sync ${{ values.app_name }}
+            ./argocd app wait ${{ values.app_name }} --timeout 180
