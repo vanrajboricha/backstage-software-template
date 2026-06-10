@@ -61,12 +61,13 @@ jobs:
       - name: Checkout Manifests Repo
         uses: actions/checkout@v4
 
+
       - name: Modify values file via yq
         shell: bash
         run: |
-          sudo wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq
-          sudo chmod +x /usr/local/bin/yq
-          yq e -i '.image.tag = "'"${{ '${{ needs.ci.outputs.commit_id }}' }}"'"' charts/${{ values.app_name }}/values-${{ values.app_env }}.yaml
+          curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o ./yq          
+          chmod +x ./yq          
+          ./yq e -i '.image.tag = "'"${{ '${{ needs.ci.outputs.commit_id }}' }}"'"' charts/${{ values.app_name }}/values-${{ values.app_env }}.yaml
 
       - name: Commit manifest changes
         uses: EndBug/add-and-commit@v9
