@@ -101,7 +101,7 @@ jobs:
       - name: Ensure ArgoCD Repository Reference and Application State
         shell: bash
         run: |
-          repo=""https://github.com/vanraj-boricha/${{ values.app_name }}.git"
+          repo="https://github.com/vanraj-boricha/${{ values.app_name }}.git"
 
           # Add repo to ArgoCD if not already registered
           ./argocd repo list | grep -q "$REPO" || \
