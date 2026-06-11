@@ -1,11 +1,12 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: ${{ values.app_name }}
-  description: ${{ values.description }}
+  name: ${{values.app_name}}
+  description: NODE JS Application
   annotations:
-    github.com/project-slug: ${{ values.repoUrl | projectSlug }}
+    github.com/project-slug: vanraj-boricha/${{values.app_name}}
+    backstage.io/techdocs-ref: dir:.
 spec:
   type: service
+  owner: development
   lifecycle: experimental
-  owner: ${{ values.owner }}
