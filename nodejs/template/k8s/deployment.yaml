@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${{ values.app_name }}
+  namespace: ${{ values.namespace }}
+  labels:
+    app: ${{ values.app_name }}
+spec:
+  replicas: ${{ values.replicas }}
+  selector:
+    matchLabels:
+      app: ${{ values.app_name }}
+  template:
+    metadata:
+      labels:
+        app: ${{ values.app_name }}
+    spec:
+      serviceAccountName: ${{ values.app_name }}-sa
+      containers:
+        - name: ${{ values.app_name }}
+          image: ${{ values.ecr_repo }}:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: ${{ values.port }}
+          env:
+            - name: PORT
+              value: "${{ values.port }}"
+            - name: NODE_ENV
+              value: production
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: ${{ values.port }}
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: ${{ values.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          resources:
+            requests:
+              memory: "128Mi"
+              cpu: "100m"
+            limits:
+              memory: "256Mi"
+              cpu: "500m"

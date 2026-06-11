@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>${{ values.app_name }}</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #0f1117;
+      color: #e0e0e0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 40px 20px;
+    }
+
+    header {
+      text-align: center;
+      margin-bottom: 40px;
+    }
+
+    header h1 {
+      font-size: 2.5rem;
+      color: #7c3aed;
+    }
+
+    header p {
+      color: #888;
+      margin-top: 8px;
+      font-size: 1rem;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 20px;
+      width: 100%;
+      max-width: 900px;
+      margin-bottom: 40px;
+    }
+
+    .card {
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 12px;
+      padding: 24px;
+    }
+
+    .card .label {
+      font-size: 0.75rem;
+      color: #666;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 8px;
+    }
+
+    .card .value {
+      font-size: 1.4rem;
+      font-weight: 600;
+      color: #a78bfa;
+    }
+
+    .endpoints {
+      width: 100%;
+      max-width: 900px;
+      background: #1a1d27;
+      border: 1px solid #2a2d3a;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+
+    .endpoints h2 {
+      padding: 20px 24px;
+      font-size: 1rem;
+      border-bottom: 1px solid #2a2d3a;
+      color: #aaa;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .endpoint-row {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 24px;
+      border-bottom: 1px solid #1e2130;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .endpoint-row:hover { background: #22253a; }
+    .endpoint-row:last-child { border-bottom: none; }
+
+    .method {
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 3px 10px;
+      border-radius: 6px;
+      background: #7c3aed22;
+      color: #a78bfa;
+      min-width: 50px;
+      text-align: center;
+    }
+
+    .ep-path { font-family: monospace; color: #e0e0e0; font-size: 0.95rem; }
+    .ep-desc { color: #666; font-size: 0.85rem; margin-left: auto; }
+
+    .response-box {
+      display: none;
+      background: #12141e;
+      border-top: 1px solid #2a2d3a;
+      padding: 16px 24px;
+      font-family: monospace;
+      font-size: 0.85rem;
+      color: #7ee787;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .status-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: #22c55e;
+      display: inline-block;
+      margin-right: 6px;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    footer {
+      margin-top: 40px;
+      color: #444;
+      font-size: 0.8rem;
+    }
+  </style>
+</head>
+<body>
+
+  <header>
+    <h1>⚡ ${{ values.app_name }}</h1>
+    <p><span class="status-dot"></span> ${{ values.description }}</p>
+  </header>
+
+  <!-- Stats cards — filled by /api/info -->
+  <div class="grid" id="stats-grid">
+    <div class="card"><div class="label">Version</div><div class="value" id="stat-version">—</div></div>
+    <div class="card"><div class="label">Hostname</div><div class="value" id="stat-host">—</div></div>
+    <div class="card"><div class="label">Uptime</div><div class="value" id="stat-uptime">—</div></div>
+    <div class="card"><div class="label">Memory</div><div class="value" id="stat-memory">—</div></div>
+    <div class="card"><div class="label">Node</div><div class="value" id="stat-node">—</div></div>
+    <div class="card"><div class="label">Port</div><div class="value" id="stat-port">—</div></div>
+  </div>
+
+  <!-- Clickable endpoint explorer -->
+  <div class="endpoints">
+    <h2>🔌 Endpoints — click to call</h2>
+    <div id="endpoint-list"></div>
+  </div>
+
+  <footer>Scaffolded with Backstage · ${{ values.app_name }} v1.0.0</footer>
+
+  <script>
+    // Load stats
+    async function loadStats() {
+      const res = await fetch('/api/info');
+      const d = await res.json();
+      document.getElementById('stat-version').textContent = d.version;
+      document.getElementById('stat-host').textContent    = d.hostname;
+      document.getElementById('stat-uptime').textContent  = d.uptime;
+      document.getElementById('stat-memory').textContent  = d.memory;
+      document.getElementById('stat-node').textContent    = d.node;
+      document.getElementById('stat-port').textContent    = d.port;
+    }
+
+    // Load and render endpoints
+    async function loadEndpoints() {
+      const res  = await fetch('/api/routes');
+      const data = await res.json();
+      const list = document.getElementById('endpoint-list');
+
+      data.routes.forEach(route => {
+        const row = document.createElement('div');
+        row.className = 'endpoint-row';
+        row.innerHTML = `
+          <span class="method">${route.method}</span>
+          <span class="ep-path">${route.path}</span>
+          <span class="ep-desc">${route.description}</span>
+        `;
+
+        const responseBox = document.createElement('div');
+        responseBox.className = 'response-box';
+
+        row.addEventListener('click', async () => {
+          if (responseBox.style.display === 'block') {
+            responseBox.style.display = 'none';
+            return;
+          }
+          try {
+            const r = await fetch(route.path);
+            const ct = r.headers.get('content-type') || '';
+            const body = ct.includes('json')
+              ? JSON.stringify(await r.json(), null, 2)
+              : await r.text();
+            responseBox.textContent = body;
+            responseBox.style.display = 'block';
+          } catch (e) {
+            responseBox.textContent = `Error: ${e.message}`;
+            responseBox.style.display = 'block';
+          }
+        });
+
+        list.appendChild(row);
+        list.appendChild(responseBox);
+      });
+    }
+
+    // Refresh uptime every 5s
+    setInterval(async () => {
+      const res = await fetch('/api/info');
+      const d = await res.json();
+      document.getElementById('stat-uptime').textContent = d.uptime;
+    }, 5000);
+
+    loadStats();
+    loadEndpoints();
+  </script>
+
+</body>
+</html>

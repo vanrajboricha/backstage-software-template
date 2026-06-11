@@ -1,0 +1,130 @@
+name: ${{ values.app_name }}-cicd
+
+on:
+  push:
+    paths:
+      - src/**
+    branches:
+      - main
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+
+  # ── CI: Build & Push Docker image to ECR ───────────────────────────
+  ci:
+    runs-on: ubuntu-latest
+    outputs:
+      commit_id: ${{ '${{ steps.expose_id.outputs.COMMIT_ID }}' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Shorten commit id
+        id: expose_id
+        shell: bash
+        run: |
+          SHORT_SHA=$(echo "${{ '${{ github.sha }}' }}" | cut -c1-6)
+          echo "COMMIT_ID=$SHORT_SHA" >> "$GITHUB_OUTPUT"
+          echo "COMMIT_ID=$SHORT_SHA" >> "$GITHUB_ENV"
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ '${{ secrets.AWS_ACCESS_KEY_ID }}' }}
+          aws-secret-access-key: ${{ '${{ secrets.AWS_SECRET_ACCESS_KEY }}' }}
+          aws-region:            ${{ values.ecr_region }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push to AWS ECR
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ values.ecr_repo }}:${{ '${{ env.COMMIT_ID }}' }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # ── CD: Update Helm values & Sync via ArgoCD ───────────────────────
+  cd:
+    needs: ci
+    runs-on: [self-hosted, eks-self-hosted]
+
+    steps:
+      - name: Checkout Manifests Repo
+        uses: actions/checkout@v4
+
+      # ── Update image tag in Helm values file ──────────────────────
+      - name: Modify values file via yq
+        shell: bash
+        run: |
+          curl -L https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -o ./yq
+          chmod +x ./yq
+          ./yq e -i '.image.tag = "'"${{ '${{ needs.ci.outputs.commit_id }}' }}"'"' \
+            charts/${{ values.app_name }}/values-${{ values.app_env }}.yaml
+
+      # ── Commit updated values file back to repo ───────────────────
+      - name: Commit manifest changes
+        uses: EndBug/add-and-commit@v9
+        with:
+          message: "chore(cd): updates values-${{ values.app_env }}.yaml with commit tag ${{ '${{ needs.ci.outputs.commit_id }}' }}"
+          default_author: github_actions
+          pull: '--rebase --autostash'
+          push: true
+
+      # ── Install ArgoCD CLI ────────────────────────────────────────
+      - name: Install ArgoCD CLI
+        shell: bash
+        run: |
+          curl -sSL -o ./argocd \
+            https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          chmod +x ./argocd
+
+      # ── Login to ArgoCD (internal cluster DNS) ────────────────────
+      - name: Login to ArgoCD Server
+        shell: bash
+        run: |
+          ./argocd login argocd-server.argocd.svc.cluster.local:443 \
+            --insecure \
+            --grpc-web \
+            --username admin \
+            --password ${{ '${{ secrets.ARGOCD_PASSWORD }}' }}
+
+      # ── Register repo + create app if it doesn't exist yet ────────
+      - name: Ensure ArgoCD Repository Reference and Application State
+        shell: bash
+        run: |
+          REPO="https://github.com/${{ values.github_org }}/${{ values.app_name }}.git"
+
+          # Add repo to ArgoCD if not already registered
+          ./argocd repo list | grep -q "$REPO" || \
+            ./argocd repo add "$REPO"
+
+          # Create ArgoCD app only on first run — skipped on subsequent deployments
+          if ! ./argocd app get ${{ values.app_name }} >/dev/null 2>&1; then
+            ./argocd app create ${{ values.app_name }} \
+              --repo "$REPO" \
+              --path charts/${{ values.app_name }} \
+              --dest-namespace ${{ values.app_env }} \
+              --dest-server https://kubernetes.default.svc \
+              --values values-${{ values.app_env }}.yaml \
+              --revision main \
+              --sync-policy manual \
+              --sync-option CreateNamespace=true
+          fi
+
+      # ── Sync and wait for healthy rollout ─────────────────────────
+      - name: Sync and Verify ArgoCD Application
+        shell: bash
+        run: |
+          ./argocd app sync ${{ values.app_name }}
+          ./argocd app wait ${{ values.app_name }} --timeout 180

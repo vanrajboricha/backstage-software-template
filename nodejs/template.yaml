@@ -1,0 +1,227 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: nodejs-eks-template
+  title: Node.js App — Deploy to EKS
+  description: Scaffolds a Node.js app and deploys it to AWS EKS via GitHub Actions
+  tags:
+    - nodejs
+    - eks
+    - aws
+    - kubernetes
+spec:
+  owner: development
+  type: service
+
+  parameters:
+
+    # ── Step 1: App Details ─────────────────────────────────────────
+    - title: Application Details
+      required:
+        - app_name
+        - description
+        - port
+        - owner
+        - app_env
+      properties:
+        app_name:
+          title: App Name
+          type: string
+          description: Unique name for your app (used in all K8s resources)
+          ui:field: EntityNamePicker
+          ui:autofocus: true
+
+        description:
+          title: Description
+          type: string
+          description: Short description of your service
+
+        port:
+          title: App Port
+          type: number
+          default: 5000
+          description: Port your Express app listens on
+
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+        
+# Add inside: - title: Application Details → properties:
+
+        github_org:
+          title: GitHub Organization
+          type: string
+          description: "Your GitHub org or username e.g. my-org"
+
+        app_env:
+          title: Deployment Environment
+          type: string
+          default: dev
+          enum:
+            - dev
+            - staging
+            - prod
+          enumNames:
+            - "Development"
+            - "Staging"
+            - "Production"
+
+    # ── Step 2: Docker Configuration ───────────────────────────────
+    - title: Docker Configuration
+      required:
+        - node_version
+        - ecr_repo
+      properties:
+        node_version:
+          title: Node.js Base Image
+          type: string
+          description: Select the Node.js version for your Docker image
+          default: "18-alpine"
+          enum:
+            - "18-alpine"
+            - "18-slim"
+            - "18-bullseye"
+            - "20-alpine"
+            - "20-slim"
+            - "20-bullseye"
+            - "21-alpine"
+            - "lts-alpine"
+          enumNames:
+            - "Node 18 Alpine  (lightweight, recommended)"
+            - "Node 18 Slim    (debian slim)"
+            - "Node 18 Bullseye (full debian)"
+            - "Node 20 Alpine  (lightweight, LTS)"
+            - "Node 20 Slim    (debian slim)"
+            - "Node 20 Bullseye (full debian)"
+            - "Node 21 Alpine  (latest)"
+            - "LTS Alpine      (always latest LTS)"
+
+        ecr_repo:
+          title: ECR Repository URI
+          type: string
+          description: "AWS ECR URI e.g. 123456789.dkr.ecr.us-east-1.amazonaws.com/my-app"
+
+        ecr_region:
+          title: AWS Region
+          type: string
+          default: us-east-1
+          enum:
+            - us-east-1
+            - us-east-2
+            - us-west-1
+            - us-west-2
+            - ap-south-1
+            - ap-southeast-1
+            - eu-west-1
+            - eu-central-1
+          enumNames:
+            - "US East (N. Virginia)"
+            - "US East (Ohio)"
+            - "US West (N. California)"
+            - "US West (Oregon)"
+            - "Asia Pacific (Mumbai)"
+            - "Asia Pacific (Singapore)"
+            - "Europe (Ireland)"
+            - "Europe (Frankfurt)"
+
+    # ── Step 3: Kubernetes / EKS Configuration ──────────────────────
+    - title: Kubernetes Configuration
+      required:
+        - eks_cluster_name
+        - namespace
+        - replicas
+      properties:
+        eks_cluster_name:
+          title: EKS Cluster Name
+          type: string
+          description: Name of your EKS cluster
+
+        namespace:
+          title: Kubernetes Namespace
+          type: string
+          default: default
+          description: Namespace to deploy into
+
+        replicas:
+          title: Initial Replicas
+          type: number
+          default: 2
+          enum: [1, 2, 3, 5]
+          enumNames:
+            - "1 — Dev / Testing"
+            - "2 — Staging"
+            - "3 — Production"
+            - "5 — High Availability"
+
+        enable_hpa:
+          title: Enable Autoscaling (HPA)?
+          type: boolean
+          default: true
+
+        ingress_enabled:
+          title: Enable Ingress (ALB)?
+          type: boolean
+          default: true
+
+        ingress_host:
+          title: Ingress Host (optional)
+          type: string
+          description: "e.g. myapp.example.com — leave blank for ALB auto-DNS"
+
+
+  # ── Scaffolder Steps ──────────────────────────────────────────────
+  steps:
+    - id: fetch
+      name: Render Template Files
+      action: fetch:template
+      input:
+        url: ./template
+        values:
+          app_name:         ${{ parameters.app_name }}
+          description:      ${{ parameters.description }}
+          port:             ${{ parameters.port }}
+          owner:            ${{ parameters.owner }}
+          node_version:     ${{ parameters.node_version }}
+          ecr_repo:         ${{ parameters.ecr_repo }}
+          ecr_region:       ${{ parameters.ecr_region }}
+          eks_cluster_name: ${{ parameters.eks_cluster_name }}
+          namespace:        ${{ parameters.namespace }}
+          replicas:         ${{ parameters.replicas }}
+          enable_hpa:       ${{ parameters.enable_hpa }}
+          ingress_enabled:  ${{ parameters.ingress_enabled }}
+          ingress_host:     ${{ parameters.ingress_host }}
+          app_env:          ${{ parameters.app_env }}
+
+    - id: publish
+      name: Publish to GitHub
+      action: publish:github
+      input:
+        #allowedHosts: ["github.com"]
+        description: ${{ parameters.description }}
+        repoUrl: github.com?owner=vanraj-boricha&repo=${{parameters.app_name}}
+        protectDefaultBranch: false
+        repoVisibility: public
+        secrets:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+    - id: register
+      name: Register in Backstage Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.publish.output.repoContentsUrl }}
+        catalogInfoPath: /catalog-info.yaml
+
+  output:
+    links:
+      - title: GitHub Repository
+        url: ${{ steps.publish.output.remoteUrl }}
+      - title: View in Catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}
+      - title: GitHub Actions — Watch Deploy
+        url: ${{ steps.publish.output.remoteUrl }}/actions
