@@ -167,11 +167,6 @@ spec:
           type: boolean
           default: true
 
-        ingress_host:
-          title: Ingress Host (optional)
-          type: string
-          description: "e.g. myapp.example.com — leave blank for ALB auto-DNS"
-
 
   # ── Scaffolder Steps ──────────────────────────────────────────────
   steps:
@@ -193,7 +188,6 @@ spec:
           replicas:         ${{ parameters.replicas }}
           enable_hpa:       ${{ parameters.enable_hpa }}
           ingress_enabled:  ${{ parameters.ingress_enabled }}
-          ingress_host:     ${{ parameters.ingress_host }}
           app_env:          ${{ parameters.app_env }}
 
     - id: publish
