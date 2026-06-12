@@ -6,6 +6,8 @@ metadata:
   annotations:
     github.com/project-slug: vanraj-boricha/${{values.app_name}}
     backstage.io/techdocs-ref: dir:.
+    prometheus.io/rule: 'sum(rate(container_cpu_usage_seconds_total{container="${{values.app_name}}"}[5m]))|CPU Load,container_memory_working_set_bytes{container="${{values.app_name}}"}|Memory Usage,rate(http_requests_total{container="${{values.app_name}}"}[5m])|HTTP Request Rate,rate(http_errors_total{container="${{values.app_name}}"}[5m])|HTTP Error Rate'
+    prometheus.io/alert: 'KubePodCrashLooping'
 spec:
   type: service
   owner: development
