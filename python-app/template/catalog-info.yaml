@@ -9,6 +9,8 @@ metadata:
     prometheus.io/rule: 'sum(rate(container_cpu_usage_seconds_total{container="${{values.app_name}}"}[5m]))|CPU Load,container_memory_working_set_bytes{container="${{values.app_name}}"}|Memory Usage,rate(http_requests_total{container="${{values.app_name}}"}[5m])|HTTP Request Rate,rate(http_errors_total{container="${{values.app_name}}"}[5m])|HTTP Error Rate'
     prometheus.io/alert: 'KubePodCrashLooping'
     argocd/app-name: ${{values.app_name}}
+    grafana/dashboard-selector: '"${{ values.app_name }}" in tags'
+    grafana/alert-label-selector: "app=${{ values.app_name }}"
 spec:
   type: service
   owner: development
