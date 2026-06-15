@@ -1,0 +1,29 @@
+apiVersion: backstage.io/v1alpha1
+kind: Component
+metadata:
+  name: ${{ values.resource_name }}
+  description: ${{ values.description }}
+  annotations:
+    github.com/project-slug: vanraj-boricha/terraform-infra
+    backstage.io/techdocs-ref: dir:.
+    backstage.io/managed-by-location: "url:https://github.com/vanrajboricha/terraform-infra/blob/main/${{ values.aws_resource_type }}/${{ values.resource_name }}-${{ values.environment }}/catalog-info.yaml"
+    terraform/resource-type:   "${{ values.aws_resource_type }}"
+    terraform/environment:     "${{ values.environment }}"
+    terraform/aws-region:      "${{ values.aws_region }}"
+    terraform/state-path:      "${{ values.environment }}/${{ values.resource_name }}/terraform.tfstate"
+    terraform/state-bucket:    "${{ values.tf_state_bucket }}"
+
+  links:
+    - title: GitHub Folder
+      url: https://github.com/vanrajboricha/terraform-infra/tree/main/${{ values.aws_resource_type }}/${{ values.resource_name }}-${{ values.environment }}
+      icon: github
+    - title: GitHub Actions
+      url: https://github.com/vanrajboricha/terraform-infra/actions
+      icon: dashboard
+    - title: AWS Console
+      url: https://console.aws.amazon.com/
+      icon: cloud
+spec:
+  type: service
+  owner: development
+  lifecycle: experimental

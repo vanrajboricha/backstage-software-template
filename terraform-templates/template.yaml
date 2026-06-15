@@ -1,0 +1,221 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: terraform-aws-template
+  title: Provision AWS Resource via Terraform
+  description: Creates AWS infrastructure using Terraform via GitHub Actions
+  tags:
+    - terraform
+    - aws
+    - infrastructure
+spec:
+  owner: development
+  type: infrastructure
+
+  parameters:
+
+    # ── Step 1: Resource Details ────────────────────────────────
+    - title: Resource Details
+      required:
+        - resource_name
+        - aws_resource_type
+        - owner
+      properties:
+        resource_name:
+          title: Resource Name
+          type: string
+          description: Unique name for your AWS resource
+          ui:autofocus: true
+
+        description:
+          title: Description
+          type: string
+          description: What is this resource for?
+
+        aws_resource_type:
+          title: AWS Resource Type
+          type: string
+          description: Select which AWS resource to provision
+          enum:
+            - s3_bucket
+            - ec2_instance
+            - rds_instance
+            - vpc
+            - eks_cluster
+            - elasticache
+            - sqs_queue
+            - sns_topic
+          enumNames:
+            - "S3 Bucket"
+            - "EC2 Instance"
+            - "RDS Instance (MySQL/Postgres)"
+            - "VPC with Subnets"
+            - "EKS Cluster"
+            - "ElastiCache (Redis)"
+            - "SQS Queue"
+            - "SNS Topic"
+
+        owner:
+          title: Owner
+          type: string
+          ui:field: OwnerPicker
+          ui:options:
+            catalogFilter:
+              kind: Group
+
+    # ── Step 2: AWS Configuration ───────────────────────────────
+    - title: AWS Configuration
+      required:
+        - aws_region
+        - environment
+      properties:
+        aws_region:
+          title: AWS Region
+          type: string
+          default: ap-south-1
+          enum:
+            - ap-south-1
+            - us-east-1
+            - us-east-2
+            - us-west-2
+            - eu-west-1
+          enumNames:
+            - "Asia Pacific (Mumbai)"
+            - "US East (N. Virginia)"
+            - "US East (Ohio)"
+            - "US West (Oregon)"
+            - "Europe (Ireland)"
+
+        environment:
+          title: Environment
+          type: string
+          default: dev
+          enum:
+            - dev
+            - staging
+            - prod
+          enumNames:
+            - "Development"
+            - "Staging"
+            - "Production"
+
+        tf_state_bucket:
+          title: Terraform State S3 Bucket
+          type: string
+          default: your-org-terraform-state
+          description: S3 bucket to store terraform state
+
+    # ── Step 3: Resource Specific Config ────────────────────────
+    - title: Resource Configuration
+      properties:
+
+        # S3 specific
+        s3_versioning:
+          title: Enable S3 Versioning?
+          type: boolean
+          default: true
+
+        s3_encryption:
+          title: Enable S3 Encryption?
+          type: boolean
+          default: true
+
+        # EC2 specific
+        ec2_instance_type:
+          title: EC2 Instance Type
+          type: string
+          default: t3.micro
+          enum:
+            - t3.micro
+            - t3.small
+            - t3.medium
+            - t3.large
+            - m5.large
+          enumNames:
+            - "t3.micro  (1 vCPU, 1GB)"
+            - "t3.small  (2 vCPU, 2GB)"
+            - "t3.medium (2 vCPU, 4GB)"
+            - "t3.large  (2 vCPU, 8GB)"
+            - "m5.large  (2 vCPU, 8GB)"
+
+        # RDS specific
+        rds_engine:
+          title: RDS Engine
+          type: string
+          default: mysql
+          enum:
+            - mysql
+            - postgres
+          enumNames:
+            - "MySQL 8.0"
+            - "PostgreSQL 15"
+
+        rds_instance_class:
+          title: RDS Instance Class
+          type: string
+          default: db.t3.micro
+          enum:
+            - db.t3.micro
+            - db.t3.small
+            - db.t3.medium
+            - db.r5.large
+
+    # ── Step 4: Repository ──────────────────────────────────────
+    # - title: Repository
+    #   required:
+    #     - repoUrl
+    #   properties:
+    #     repoUrl:
+    #       title: GitHub Repository
+    #       type: string
+    #       ui:field: RepoUrlPicker
+    #       ui:options:
+    #         allowedHosts:
+    #           - github.com
+
+  steps:
+    - id: fetch
+      name: Render Terraform Files
+      action: fetch:template
+      input:
+        url: ./template
+        # ← renders only tf files + catalog-info into this subfolder
+        targetPath: ./${{ parameters.aws_resource_type }}/${{ parameters.resource_name }}-${{ parameters.environment }}
+        values:
+          resource_name:     ${{ parameters.resource_name }}
+          description:       ${{ parameters.description }}
+          aws_resource_type: ${{ parameters.aws_resource_type }}
+          aws_region:        ${{ parameters.aws_region }}
+          environment:       ${{ parameters.environment }}
+          tf_state_bucket:   ${{ parameters.tf_state_bucket }}
+          owner:             ${{ parameters.owner }}
+
+    - id: pr
+      name: Create Pull Request in terraform-infra
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?repo=terraform-infra&owner=vanrajboricha
+        title: "feat: Add ${{ parameters.aws_resource_type }} — ${{ parameters.resource_name }}-${{ parameters.environment }}"
+        branchName: add-${{ parameters.resource_name }}-${{ parameters.environment }}
+        description: |
+          ## New AWS Resource Request
+          - **Type:**        ${{ parameters.aws_resource_type }}
+          - **Name:**        ${{ parameters.resource_name }}
+          - **Environment:** ${{ parameters.environment }}
+          - **Region:**      ${{ parameters.aws_region }}
+          - **Owner:**       ${{ parameters.owner }}
+
+    - id: register
+      name: Register in Catalog
+      action: catalog:register
+      input:
+        repoContentsUrl: ${{ steps.pr.output.repoContentsUrl }}
+        catalogInfoPath: /${{ parameters.aws_resource_type }}/${{ parameters.resource_name }}-${{ parameters.environment }}/catalog-info.yaml
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps.pr.output.remoteUrl }}
+      - title: View in Catalog
+        icon: catalog
+        entityRef: ${{ steps.register.output.entityRef }}

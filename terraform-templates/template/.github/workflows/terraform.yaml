@@ -1,0 +1,222 @@
+name: Terraform CI/CD
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '${{ values.aws_resource_type }}/${{ values.resource_name }}-${{ values.environment }}/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - '${{ values.aws_resource_type }}/${{ values.resource_name }}-${{ values.environment }}/**'
+  workflow_dispatch:
+    inputs:
+      action:
+        description: 'Terraform action to perform'
+        required: true
+        default: plan
+        type: choice
+        options:
+          - plan
+          - apply
+          - destroy
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write    # ← allows posting plan output as PR comment
+
+env:
+  TF_VERSION:       "1.6.0"
+  AWS_REGION:       "${{ values.aws_region }}"
+  RESOURCE_NAME:    "${{ values.resource_name }}"
+  ENVIRONMENT:      "${{ values.environment }}"
+  TF_WORKING_DIR:   "${{ values.aws_resource_type }}/${{ values.resource_name }}-${{ values.environment }}"
+  TF_STATE_BUCKET:  "${{ values.tf_state_bucket }}"
+
+jobs:
+
+  # ── Job 1: Terraform Plan (on PR) ─────────────────────────────
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    if: ${{ '${{ github.event_name == \'pull_request\' || github.event.inputs.action == \'plan\' }}' }}
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ '${{ env.TF_VERSION }}' }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ '${{ secrets.AWS_ACCESS_KEY_ID }}' }}
+          aws-secret-access-key: ${{ '${{ secrets.AWS_SECRET_ACCESS_KEY }}' }}
+          aws-region:            ${{ values.aws_region }}
+
+      - name: Terraform Init
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: terraform init
+
+      - name: Terraform Format Check
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: terraform fmt -check -recursive
+
+      - name: Terraform Validate
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: terraform validate
+
+      - name: Terraform Plan
+        id: plan
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: |
+          terraform plan \
+            -var="resource_name=${{ values.resource_name }}" \
+            -var="environment=${{ values.environment }}" \
+            -var="aws_region=${{ values.aws_region }}" \
+            -out=tfplan \
+            -no-color 2>&1 | tee plan_output.txt
+        continue-on-error: true
+
+      # ── Post plan output as PR comment ─────────────────────────
+      - name: Post Plan to PR
+        if: ${{ '${{ github.event_name == \'pull_request\' }}' }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const plan = fs.readFileSync(
+              '${{ '${{ env.TF_WORKING_DIR }}' }}/plan_output.txt',
+              'utf8'
+            );
+            const output = `## 🔍 Terraform Plan — \`${{ values.resource_name }}-${{ values.environment }}\`
+            
+            **Resource:** \`${{ values.aws_resource_type }}\`
+            **Environment:** \`${{ values.environment }}\`
+            **Region:** \`${{ values.aws_region }}\`
+            
+            <details>
+            <summary>Show Plan Output</summary>
+            
+            \`\`\`hcl
+            ${plan}
+            \`\`\`
+            </details>
+            
+            *Pushed by @${{ '${{ github.actor }}' }} on ${{ '${{ github.ref }}' }}*`;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Plan Status
+        if: ${{ '${{ steps.plan.outcome == \'failure\' }}' }}
+        run: exit 1
+
+  # ── Job 2: Terraform Apply (on merge to main) ──────────────────
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    needs: []
+    if: ${{ '${{ github.ref == \'refs/heads/main\' && github.event_name == \'push\' || github.event.inputs.action == \'apply\' }}' }}
+    environment:
+      name: ${{ values.environment }}      # ← requires manual approval in GitHub
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ '${{ env.TF_VERSION }}' }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ '${{ secrets.AWS_ACCESS_KEY_ID }}' }}
+          aws-secret-access-key: ${{ '${{ secrets.AWS_SECRET_ACCESS_KEY }}' }}
+          aws-region:            ${{ values.aws_region }}
+
+      - name: Terraform Init
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: |
+          terraform plan \
+            -var="resource_name=${{ values.resource_name }}" \
+            -var="environment=${{ values.environment }}" \
+            -var="aws_region=${{ values.aws_region }}" \
+            -out=tfplan
+
+      - name: Terraform Apply
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: terraform apply -auto-approve tfplan
+
+      # ── Print outputs after apply ─────────────────────────────
+      - name: Terraform Output
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: terraform output
+
+      # ── Save outputs to GitHub Actions summary ────────────────
+      - name: Save Outputs to Summary
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: |
+          echo "## ✅ Terraform Apply Complete" >> $GITHUB_STEP_SUMMARY
+          echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Resource | ${{ values.resource_name }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Type | ${{ values.aws_resource_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Environment | ${{ values.environment }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Region | ${{ values.aws_region }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Outputs" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          terraform output >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  # ── Job 3: Terraform Destroy (manual only) ─────────────────────
+  destroy:
+    name: Terraform Destroy
+    runs-on: ubuntu-latest
+    if: ${{ '${{ github.event.inputs.action == \'destroy\' }}' }}
+    environment:
+      name: ${{ values.environment }}-destroy    # ← separate approval gate
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: ${{ '${{ env.TF_VERSION }}' }}
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id:     ${{ '${{ secrets.AWS_ACCESS_KEY_ID }}' }}
+          aws-secret-access-key: ${{ '${{ secrets.AWS_SECRET_ACCESS_KEY }}' }}
+          aws-region:            ${{ values.aws_region }}
+
+      - name: Terraform Init
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: terraform init
+
+      - name: Terraform Destroy
+        working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
+        run: |
+          terraform destroy \
+            -var="resource_name=${{ values.resource_name }}" \
+            -var="environment=${{ values.environment }}" \
+            -var="aws_region=${{ values.aws_region }}" \
+            -auto-approve
