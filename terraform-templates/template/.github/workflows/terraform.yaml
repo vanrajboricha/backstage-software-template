@@ -27,7 +27,7 @@ permissions:
   pull-requests: write    # ← allows posting plan output as PR comment
 
 env:
-  TF_VERSION:       "1.6.0"
+  TF_VERSION:       "1.6.1"
   AWS_REGION:       "${{ values.aws_region }}"
   RESOURCE_NAME:    "${{ values.resource_name }}"
   ENVIRONMENT:      "${{ values.environment }}"
