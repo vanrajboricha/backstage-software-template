@@ -7,7 +7,7 @@ output "bucket_arn" {
   value       = aws_s3_bucket.main.arn
   description = "S3 bucket ARN"
 }
-{%- if "${{ values.aws_resource_type }}" == "s3_bucket" %} endif %}
+{%- endif %}
 
 {%- if values.aws_resource_type == "ec2_instance" %}
 output "instance_id" {
