@@ -1,5 +1,5 @@
 # ── S3 Bucket ─────────────────────────────────────────────────────
-${% if values.aws_resource_type == "s3_bucket" %}
+{%- if values.aws_resource_type == "s3_bucket" %}
 resource "aws_s3_bucket" "main" {
   bucket = "${{ values.resource_name }}-${{ values.environment }}"
 }
@@ -29,10 +29,10 @@ resource "aws_s3_bucket_public_access_block" "main" {
   ignore_public_acls      = true
   restrict_public_buckets = true
 }
-${% endif %}
+{%- endif %}
 
 # ── EC2 Instance ───────────────────────────────────────────────────
-${% if values.aws_resource_type == "ec2_instance" %}
+{%- if values.aws_resource_type == "ec2_instance" %}
 data "aws_ami" "amazon_linux" {
   most_recent = true
   owners      = ["amazon"]
@@ -50,10 +50,10 @@ resource "aws_instance" "main" {
     Name = "${{ values.resource_name }}-${{ values.environment }}"
   }
 }
-${% endif %}
+{%- endif %}
 
 # ── RDS Instance ───────────────────────────────────────────────────
-${% if values.aws_resource_type == "rds_instance" %}
+{%- if values.aws_resource_type == "rds_instance" %}
 resource "aws_db_instance" "main" {
   identifier        = "${{ values.resource_name }}-${{ values.environment }}"
   engine            = var.rds_engine
@@ -80,10 +80,10 @@ resource "aws_ssm_parameter" "db_password" {
   type  = "SecureString"
   value = random_password.db.result
 }
-${% endif %}
+{%- endif %}
 
 # ── SQS Queue ──────────────────────────────────────────────────────
-${% if values.aws_resource_type == "sqs_queue" %}
+{%- if values.aws_resource_type == "sqs_queue" %}
 resource "aws_sqs_queue" "main" {
   name                      = "${{ values.resource_name }}-${{ values.environment }}"
   delay_seconds             = 0
@@ -95,10 +95,10 @@ resource "aws_sqs_queue" "main" {
     Name = "${{ values.resource_name }}-${{ values.environment }}"
   }
 }
-${% endif %}
+{%- endif %}
 
 # ── SNS Topic ──────────────────────────────────────────────────────
-${% if values.aws_resource_type == "sns_topic" %}
+{%- if values.aws_resource_type == "sns_topic" %}
 resource "aws_sns_topic" "main" {
   name = "${{ values.resource_name }}-${{ values.environment }}"
 
@@ -106,4 +106,4 @@ resource "aws_sns_topic" "main" {
     Name = "${{ values.resource_name }}-${{ values.environment }}"
   }
 }
-${% endif %}
+{%- endif %}
