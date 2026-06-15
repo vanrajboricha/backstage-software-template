@@ -14,7 +14,7 @@ spec:
 
   parameters:
 
-    # ── Step 1: Resource Details ────────────────────────────────
+    # ── Step 1: Resource Details + Config (merged) ─────────────────
     - title: Resource Details
       required:
         - resource_name
@@ -32,29 +32,6 @@ spec:
           type: string
           description: What is this resource for?
 
-        aws_resource_type:
-          title: AWS Resource Type
-          type: string
-          description: Select which AWS resource to provision
-          enum:
-            - s3_bucket
-            - ec2_instance
-            - rds_instance
-            - vpc
-            - eks_cluster
-            - elasticache
-            - sqs_queue
-            - sns_topic
-          enumNames:
-            - "S3 Bucket"
-            - "EC2 Instance"
-            - "RDS Instance (MySQL/Postgres)"
-            - "VPC with Subnets"
-            - "EKS Cluster"
-            - "ElastiCache (Redis)"
-            - "SQS Queue"
-            - "SNS Topic"
-
         owner:
           title: Owner
           type: string
@@ -63,7 +40,104 @@ spec:
             catalogFilter:
               kind: Group
 
-    # ── Step 2: AWS Configuration ───────────────────────────────
+        aws_resource_type:
+          title: AWS Resource Type
+          type: string
+          description: Select which AWS resource to provision
+          enum:
+            - s3_bucket
+            - ec2_instance
+            - rds_instance
+            - sqs_queue
+            - sns_topic
+          enumNames:
+            - "S3 Bucket"
+            - "EC2 Instance"
+            - "RDS Instance (MySQL/Postgres)"
+            - "SQS Queue"
+            - "SNS Topic"
+
+      # ── Show only relevant fields based on selection ────────────
+      dependencies:
+        aws_resource_type:
+          oneOf:
+
+            # ── S3 — show versioning + encryption ─────────────────
+            - properties:
+                aws_resource_type:
+                  enum: [s3_bucket]
+                s3_versioning:
+                  title: Enable S3 Versioning?
+                  type: boolean
+                  default: true
+                  description: Enable versioning on the S3 bucket
+                s3_encryption:
+                  title: Enable S3 Encryption?
+                  type: boolean
+                  default: true
+                  description: Enable AES256 server-side encryption
+              required: []
+
+            # ── EC2 — show instance type only ─────────────────────
+            - properties:
+                aws_resource_type:
+                  enum: [ec2_instance]
+                ec2_instance_type:
+                  title: EC2 Instance Type
+                  type: string
+                  default: t3.micro
+                  enum:
+                    - t3.micro
+                    - t3.small
+                    - t3.medium
+                    - t3.large
+                    - m5.large
+                  enumNames:
+                    - "t3.micro  (1 vCPU, 1GB)"
+                    - "t3.small  (2 vCPU, 2GB)"
+                    - "t3.medium (2 vCPU, 4GB)"
+                    - "t3.large  (2 vCPU, 8GB)"
+                    - "m5.large  (2 vCPU, 8GB)"
+              required: [ec2_instance_type]
+
+            # ── RDS — show engine + instance class ────────────────
+            - properties:
+                aws_resource_type:
+                  enum: [rds_instance]
+                rds_engine:
+                  title: RDS Engine
+                  type: string
+                  default: mysql
+                  enum:
+                    - mysql
+                    - postgres
+                  enumNames:
+                    - "MySQL 8.0"
+                    - "PostgreSQL 15"
+                rds_instance_class:
+                  title: RDS Instance Class
+                  type: string
+                  default: db.t3.micro
+                  enum:
+                    - db.t3.micro
+                    - db.t3.small
+                    - db.t3.medium
+                    - db.r5.large
+              required: [rds_engine, rds_instance_class]
+
+            # ── SQS — no extra fields ──────────────────────────────
+            - properties:
+                aws_resource_type:
+                  enum: [sqs_queue]
+              required: []
+
+            # ── SNS — no extra fields ──────────────────────────────
+            - properties:
+                aws_resource_type:
+                  enum: [sns_topic]
+              required: []
+
+    # ── Step 2: AWS Configuration ───────────────────────────────────
     - title: AWS Configuration
       required:
         - aws_region
@@ -104,62 +178,6 @@ spec:
           type: string
           default: your-org-terraform-state
           description: S3 bucket to store terraform state
-
-    # ── Step 3: Resource Specific Config ────────────────────────
-    - title: Resource Configuration
-      properties:
-
-        # S3 specific
-        s3_versioning:
-          title: Enable S3 Versioning?
-          type: boolean
-          default: true
-
-        s3_encryption:
-          title: Enable S3 Encryption?
-          type: boolean
-          default: true
-
-        # EC2 specific
-        ec2_instance_type:
-          title: EC2 Instance Type
-          type: string
-          default: t3.micro
-          enum:
-            - t3.micro
-            - t3.small
-            - t3.medium
-            - t3.large
-            - m5.large
-          enumNames:
-            - "t3.micro  (1 vCPU, 1GB)"
-            - "t3.small  (2 vCPU, 2GB)"
-            - "t3.medium (2 vCPU, 4GB)"
-            - "t3.large  (2 vCPU, 8GB)"
-            - "m5.large  (2 vCPU, 8GB)"
-
-        # RDS specific
-        rds_engine:
-          title: RDS Engine
-          type: string
-          default: mysql
-          enum:
-            - mysql
-            - postgres
-          enumNames:
-            - "MySQL 8.0"
-            - "PostgreSQL 15"
-
-        rds_instance_class:
-          title: RDS Instance Class
-          type: string
-          default: db.t3.micro
-          enum:
-            - db.t3.micro
-            - db.t3.small
-            - db.t3.medium
-            - db.r5.large
-
     # ── Step 4: Repository ──────────────────────────────────────
     # - title: Repository
     #   required:
