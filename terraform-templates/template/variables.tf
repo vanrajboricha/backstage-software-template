@@ -20,13 +20,13 @@ variable "environment" {
 variable "s3_versioning" {
   description = "Enable S3 versioning"
   type        = bool
-  default     = ${{ values.s3_versioning }}
+  default     = true
 }
 
 variable "s3_encryption" {
   description = "Enable S3 encryption"
   type        = bool
-  default     = ${{ values.s3_encryption }}
+  default     = true
 }
 
 # EC2 variables
