@@ -61,6 +61,8 @@ jobs:
       - name: Terraform Init
         working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
         run: terraform init
+        env:
+          TF_CLI_ARGS_init: "-plugin-dir=/dev/null"
 
       - name: Terraform Format Check
         working-directory: ${{ '${{ env.TF_WORKING_DIR }}' }}
