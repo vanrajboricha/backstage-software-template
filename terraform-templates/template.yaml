@@ -209,7 +209,8 @@ spec:
       name: Register in Catalog
       action: catalog:register
       input:
-        catalogInfoPath: https://github.com/vanrajboricha/terraform-infra/blob/main/${{ parameters.aws_resource_type }}/${{ parameters.resource_name }}-${{ parameters.environment }}/catalog-info.yaml
+        repoContentsUrl: ${{ steps.pr.output.repoContentsUrl }}
+        catalogInfoPath: /${{ parameters.aws_resource_type }}/${{ parameters.resource_name }}-${{ parameters.environment }}/catalog-info.yaml
 
   output:
     links:
