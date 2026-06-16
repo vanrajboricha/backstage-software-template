@@ -49,3 +49,18 @@ env:
     value: "${{ values.port }}"
   - name: NODE_ENV
     value: "staging"
+
+monitoring:
+  enabled: {{ values.enable_prometheus }}
+{% if values.enable_prometheus %}
+  portName: http
+  metricsPath: {{ values.prometheus_metrics_path }}
+  scrapeInterval: {{ values.prometheus_scrape_interval }}
+  scrapeTimeout: 10s
+  dashboard:
+    enabled: true
+  alerting:
+    enabled: true
+    memoryThresholdBytes: 300000000
+    cpuThresholdPercent: 80
+{% endif %}

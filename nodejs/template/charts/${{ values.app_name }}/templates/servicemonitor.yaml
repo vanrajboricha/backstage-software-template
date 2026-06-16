@@ -1,0 +1,22 @@
+{% if values.enable_prometheus %}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ "{{ include \"app.fullname\" . }}" }}
+  namespace: {{ "{{ .Release.Namespace }}" }}
+  labels:
+    {{ "{{- include \"app.labels\" . | nindent 4 }}" }}
+    release: prometheus
+spec:
+  selector:
+    matchLabels:
+      {{ "{{- include \"app.selectorLabels\" . | nindent 6 }}" }}
+  namespaceSelector:
+    matchNames:
+      - {{ "{{ .Release.Namespace }}" }}
+  endpoints:
+    - port: {{ "{{ .Values.monitoring.portName }}" }}
+      path: {{ "{{ .Values.monitoring.metricsPath }}" }}
+      interval: {{ "{{ .Values.monitoring.scrapeInterval }}" }}
+      scrapeTimeout: {{ "{{ .Values.monitoring.scrapeTimeout }}" }}
+{% endif %}

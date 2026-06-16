@@ -23,6 +23,7 @@ spec:
         - port
         - owner
         - app_env
+        - enable_prometheus
       properties:
         app_name:
           title: App Name
@@ -49,6 +50,12 @@ spec:
           ui:options:
             catalogFilter:
               kind: Group
+
+        enable_prometheus:
+          title: Enable Prometheus Monitoring?
+          type: boolean
+          default: false
+          description: Exposes /metrics endpoint and creates ServiceMonitor              
         
 # Add inside: - title: Application Details → properties:
 
@@ -167,6 +174,40 @@ spec:
           type: boolean
           default: true
 
+      dependencies:
+        enable_prometheus:
+          oneOf:
+
+            # ── Prometheus disabled — no extra fields ──────────
+            - properties:
+                enable_prometheus:
+                  enum: [false]
+              required: []
+
+            # ── Prometheus enabled — show extra config ─────────
+            - properties:
+                enable_prometheus:
+                  enum: [true]
+                prometheus_scrape_interval:
+                  title: Scrape Interval
+                  type: string
+                  default: 15s
+                  enum:
+                    - 10s
+                    - 15s
+                    - 30s
+                    - 60s
+                  enumNames:
+                    - "10 seconds"
+                    - "15 seconds (recommended)"
+                    - "30 seconds"
+                    - "60 seconds"
+                prometheus_metrics_path:
+                  title: Metrics Path
+                  type: string
+                  default: /metrics
+                  description: Path where metrics are exposed
+              required: []
 
   # ── Scaffolder Steps ──────────────────────────────────────────────
   steps:
@@ -189,6 +230,9 @@ spec:
           enable_hpa:       ${{ parameters.enable_hpa }}
           ingress_enabled:  ${{ parameters.ingress_enabled }}
           app_env:          ${{ parameters.app_env }}
+          enable_prometheus:          ${{ parameters.enable_prometheus }}
+          prometheus_scrape_interval: ${{ parameters.prometheus_scrape_interval if parameters.enable_prometheus else "15s" }}
+          prometheus_metrics_path:    ${{ parameters.prometheus_metrics_path if parameters.enable_prometheus else "/metrics" }}
 
     - id: publish
       name: Publish to GitHub
