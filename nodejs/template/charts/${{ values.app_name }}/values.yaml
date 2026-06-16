@@ -81,17 +81,16 @@ readinessProbe:
   periodSeconds: 10
 
 monitoring:
-  enabled: {{ values.enable_prometheus }}
+  # Dump ensures boolean values don't break YAML parsing
+  enabled: ${{ values.enable_prometheus | dump }}
   portName: http
-  metricsPath: {{ values.prometheus_metrics_path | default("/metrics") }}
-  scrapeInterval: {{ values.prometheus_scrape_interval | default("15s") }}
+  metricsPath: ${{ values.prometheus_metrics_path | default("/metrics") }}
+  scrapeInterval: ${{ values.prometheus_scrape_interval | default("15s") }}
   scrapeTimeout: 10s
   dashboard:
-    enabled: {{ values.enable_prometheus }}
+    enabled: ${{ values.enable_prometheus | dump }}
   alerting:
     enabled: false
-    memoryThresholdBytes: 500000000
-    cpuThresholdPercent: 80
 
 nodeSelector: {}
 tolerations: []
