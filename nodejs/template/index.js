@@ -6,7 +6,7 @@ const promClient = require('prom-client');
 {% endif %}
 
 const app  = express();
-const PORT = process.env.PORT || {{ values.port }};
+const PORT = process.env.PORT || ${{ values.port }};
 
 {% if values.enable_prometheus %}
 // ── Prometheus Setup ───────────────────────────────────────────
@@ -70,15 +70,15 @@ app.get('/health', (req, res) => {
 
 app.get('/api/info', (req, res) => {
   res.json({
-    app:         '{{ values.app_name }}',
-    description: '{{ values.description }}',
+    app:         '${{ values.app_name }}',
+    description: '${{ values.description }}',
     version:     '1.0.0',
     hostname:    os.hostname(),
     uptime:      `${Math.floor(process.uptime())}s`,
     memory:      `${Math.round(process.memoryUsage().rss / 1024 / 1024)} MB`,
     node:        process.version,
     port:        PORT,
-    monitoring:  {{ values.enable_prometheus }},
+    monitoring:  ${{ values.enable_prometheus }},
     timestamp:   new Date().toISOString(),
   });
 });
@@ -90,7 +90,7 @@ app.get('/api/routes', (req, res) => {
     { method: 'GET', path: '/api/info',   description: 'App info' },
     { method: 'GET', path: '/api/routes', description: 'List all routes' },
 {% if values.enable_prometheus %}
-    { method: 'GET', path: '{{ values.prometheus_metrics_path }}', description: 'Prometheus metrics' },
+    { method: 'GET', path: '${{ values.prometheus_metrics_path }}', description: 'Prometheus metrics' },
 {% endif %}
   ];
   res.json({ routes });
@@ -98,17 +98,17 @@ app.get('/api/routes', (req, res) => {
 
 {% if values.enable_prometheus %}
 // ── Prometheus metrics endpoint ────────────────────────────────
-app.get('{{ values.prometheus_metrics_path }}', async (req, res) => {
+app.get('${{ values.prometheus_metrics_path }}', async (req, res) => {
   res.set('Content-Type', register.contentType);
   res.end(await register.metrics());
 });
 {% endif %}
 
 app.listen(PORT, () => {
-  console.log(`✅ {{ values.app_name }} running at http://localhost:${PORT}`);
+  console.log(`✅ ${{ values.app_name }} running at http://localhost:${PORT}`);
   console.log(`   → UI:     http://localhost:${PORT}/`);
   console.log(`   → Health: http://localhost:${PORT}/health`);
 {% if values.enable_prometheus %}
-  console.log(`   → Metrics: http://localhost:${PORT}{{ values.prometheus_metrics_path }}`);
+  console.log(`   → Metrics: http://localhost:${PORT}${{ values.prometheus_metrics_path }}`);
 {% endif %}
 });
