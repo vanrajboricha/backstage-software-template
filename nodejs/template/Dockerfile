@@ -4,7 +4,12 @@ FROM node:${{ values.node_version }}
 WORKDIR /app
 
 COPY package*.json ./
+
+{% if values.enable_prometheus %}
+RUN npm install --production && npm install prom-client
+{% else %}
 RUN npm install --production
+{% endif %}
 
 COPY . .
 
