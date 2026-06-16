@@ -52,15 +52,13 @@ env:
 
 monitoring:
   enabled: {{ values.enable_prometheus }}
-{% if values.enable_prometheus %}
   portName: http
-  metricsPath: {{ values.prometheus_metrics_path }}
-  scrapeInterval: {{ values.prometheus_scrape_interval }}
+  metricsPath: {{ values.prometheus_metrics_path | default("/metrics") }}
+  scrapeInterval: {{ values.prometheus_scrape_interval | default("15s") }}
   scrapeTimeout: 10s
   dashboard:
-    enabled: true
+    enabled: {{ values.enable_prometheus }}
   alerting:
-    enabled: true
+    enabled: {{ values.enable_prometheus }}
     memoryThresholdBytes: 300000000
-    cpuThresholdPercent: 80
-{% endif %}
+    cpuThresholdPercent: 70
