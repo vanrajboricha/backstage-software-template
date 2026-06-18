@@ -14,6 +14,7 @@ spec:
         - component_id
         - environment
         - replica_count
+        - prod_approver
 
       properties:
         component_id:
@@ -35,6 +36,12 @@ spec:
           type: integer
           description: Number of pod replicas
           default: 1
+
+        prod_approver:
+          title: PROD Approver GitHub Username
+          type: string
+          description: GitHub username who will approve PROD deployments
+          ui:autofocus: false
 
         cpu_request:
           title: CPU Request
@@ -72,6 +79,32 @@ spec:
         repoUrl: github.com?owner=vanraj-boricha&repo=${{parameters.component_id}}
         protectDefaultBranch: false
         repoVisibility: public
+
+    # ── Create DEV environment — no approval ──────────────────────
+    - id: create-env-dev
+      name: Create DEV Environment
+      action: github:environment:create
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        name: dev
+        deploymentBranchPolicy:
+          protectedBranches: false
+          customBranchPolicies: false
+
+    # ── Create PROD environment — with approval ────────────────────
+    - id: create-env-prod
+      name: Create PROD Environment (with approval)
+      action: github:environment:create
+      input:
+        repoUrl: ${{ parameters.repoUrl }}
+        name: prod
+        # ── This sets required reviewers ──────────────────────────
+        reviewers:
+          - ${{ parameters.prod_approver }}
+        preventSelfReview: true
+        deploymentBranchPolicy:
+          protectedBranches: true
+          customBranchPolicies: false
 
     - id: register
       name: Register

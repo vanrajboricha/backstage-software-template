@@ -109,8 +109,8 @@ jobs:
           ./argocd repo list | grep -q "$REPO" || \
             ./argocd repo add "$REPO"
 
-          if ! ./argocd app get ${{ values.app_name }} >/dev/null 2>&1; then
-            ./argocd app create ${{ values.app_name }} \
+          if ! ./argocd app get ${{ values.app_name }}-dev >/dev/null 2>&1; then
+            ./argocd app create ${{ values.app_name }}-dev \
               --repo "$REPO" \
               --path charts/${{ values.app_name }} \
               --dest-namespace dev \
@@ -124,8 +124,8 @@ jobs:
       - name: Sync DEV and Wait
         shell: bash
         run: |
-          ./argocd app sync ${{ values.app_name }}
-          ./argocd app wait ${{ values.app_name }} --timeout 180
+          ./argocd app sync ${{ values.app_name }}-dev
+          ./argocd app wait ${{ values.app_name }}-dev --timeout 180
 
       - name: Print DEV deployment summary
         shell: bash
@@ -194,8 +194,8 @@ jobs:
         run: |
           REPO="https://github.com/vanraj-boricha/${{ values.app_name }}.git"
 
-          if ! ./argocd app get ${{ values.app_name }} >/dev/null 2>&1; then
-            ./argocd app create ${{ values.app_name }} \
+          if ! ./argocd app get ${{ values.app_name }}-prod >/dev/null 2>&1; then
+            ./argocd app create ${{ values.app_name }}-prod \
               --repo "$REPO" \
               --path charts/${{ values.app_name }} \
               --dest-namespace prod \
@@ -209,8 +209,8 @@ jobs:
       - name: Sync PROD and Wait
         shell: bash
         run: |
-          ./argocd app sync ${{ values.app_name }}
-          ./argocd app wait ${{ values.app_name }} --timeout 180
+          ./argocd app sync ${{ values.app_name }}-prod
+          ./argocd app wait ${{ values.app_name }}-prod --timeout 180
 
       - name: Print PROD deployment summary
         shell: bash
