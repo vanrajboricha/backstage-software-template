@@ -31,7 +31,10 @@ ingress:
   enabled: true
   ingressClassName: alb   # ← nested under ingress:
   annotations:
-    alb.ingress.kubernetes.io/scheme: internal
+    # 1. Change from 'internal' to 'internet-facing'
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    # 2. Attach your custom Security Group ID
+    alb.ingress.kubernetes.io/security-groups: sg-069a3b19f094012ae
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}]'
     alb.ingress.kubernetes.io/success-codes: '200'
