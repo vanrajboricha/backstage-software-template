@@ -86,10 +86,7 @@ spec:
       action: github:environment:create
       input:
         repoUrl: github.com?owner=vanraj-boricha&repo=${{parameters.component_id}}
-        name: dev
-        deploymentBranchPolicy:
-          protected_branches: false                 
-          custom_branch_policies: false             
+        name: dev            
 
     # ── Create PROD environment — with approval ────────────────────
     - id: create-env-prod
@@ -98,10 +95,7 @@ spec:
       input:
         repoUrl: github.com?owner=vanraj-boricha&repo=${{parameters.component_id}}
         name: prod
-        reviewers: ${{ parameters.prod_approver }}
-        deploymentBranchPolicy:
-          protected_branches: true                  
-          custom_branch_policies: false             
+        reviewers: ${{ parameters.prod_approver }}          
 
     - id: register
       name: Register
