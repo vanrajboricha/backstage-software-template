@@ -88,14 +88,18 @@ spec:
         repoUrl: github.com?owner=vanraj-boricha&repo=${{parameters.component_id}}
         name: dev            
 
-    # ── Create PROD environment — with approval ────────────────────
+# ── Create PROD environment — with approval ────────────────────
     - id: create-env-prod
       name: Create PROD Environment
       action: github:environment:create
       input:
         repoUrl: github.com?owner=vanraj-boricha&repo=${{parameters.component_id}}
         name: prod
-        reviewers: ${{ parameters.prod_approver }}          
+        # 1. Indented exactly under 'name: prod' inside the 'input' block
+        # 2. Formatted as an array using the hyphen
+        # 3. Formatted as an entity reference for the backend to parse
+        reviewers:
+          - "user:default/${{ parameters.prod_approver }}"      
 
     - id: register
       name: Register
