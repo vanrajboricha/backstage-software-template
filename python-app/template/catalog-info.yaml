@@ -11,6 +11,7 @@ metadata:
     argocd/app-name: ${{values.app_name}}
     grafana/dashboard-selector: '"${{ values.app_name }}" in tags'
     grafana/alert-label-selector: "app=${{ values.app_name }}"
+    sonarqube.org/project-key: vanraj-boricha_${{ values.app_name }}
 spec:
   type: service
   owner: development

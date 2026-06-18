@@ -17,6 +17,7 @@ metadata:
     prometheus.io/path:   "{{ values.prometheus_metrics_path }}"
     prometheus.io/port:   "{{ values.port }}"
     {% endif %}
+    sonarqube.org/project-key: vanraj-boricha_${{ values.app_name }}
 
 spec:
   type: service

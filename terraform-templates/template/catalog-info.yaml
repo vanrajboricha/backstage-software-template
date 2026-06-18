@@ -12,6 +12,7 @@ metadata:
     terraform/aws-region:      "${{ values.aws_region }}"
     terraform/state-path:      "${{ values.environment }}/${{ values.resource_name }}/terraform.tfstate"
     terraform/state-bucket:    "${{ values.tf_state_bucket }}"
+    sonarqube.org/project-key: vanraj-boricha_terraform-infra
 
   links:
     - title: GitHub Folder
