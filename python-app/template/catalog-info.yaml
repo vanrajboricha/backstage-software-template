@@ -13,6 +13,10 @@ metadata:
     grafana/dashboard-selector: '"${{ values.app_name }}" in tags'
     grafana/alert-label-selector: "app=${{ values.app_name }}"
     sonarqube.org/project-key: vanraj-boricha_${{ values.app_name }}
+    backstage.io/kubernetes-id: {{ values.app_name }}
+    backstage.io/kubernetes-namespace: {{ values.app_env }}
+    backstage.io/kubernetes-cluster: eks-cluster
+    backstage.io/kubernetes-label-selector: "app={{ values.app_name }}"
 
   links:
     - title: Approve PROD Deployment
